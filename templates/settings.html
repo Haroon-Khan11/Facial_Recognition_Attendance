@@ -1,0 +1,59 @@
+{% extends "header.html" %}
+{% block title %} Settings {% endblock %}
+
+{% block extra_style %}
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/simple-line-icons/2.4.1/css/simple-line-icons.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/css/bootstrap.min.css">
+    <link rel="stylesheet" href="static/css/style_login.css">
+    <script type="text/javascript" src="https://code.jquery.com/jquery-3.2.1.min.js"></script>
+    <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/jquery.mask/1.14.15/jquery.mask.min.js"></script>
+    <script src="static/js/scripts_login.js"></script>
+{% endblock %}
+
+{% block content %}
+    <div class="registration-form" style="padding-top: 120px">
+        <form style="background-color: #0a0909">
+            <div class="form-group">
+                <h4 style="text-align: center; color: white">Personal Information</h4>
+                <hr style="height: 2px; background-color: white; border-color: white;">
+                <h5 style="color: white">Name: Haroon Nematullah S J</h5>
+                <h5 style="color: white">Id: 200706805</h5>
+                <h5 style="color: white">Email: Haroon.n.shah1999@gmail.com</h5>
+            </div>
+        </form>
+    </div>
+    <div class="registration-form" style="padding-top: 10px">
+        <form style="background-color: #0a0909">
+            <div class="form-group">
+                <h4 style="text-align: center; color: white">Change Email Address</h4>
+                <hr style="height: 2px; background-color: white; border-color: white;">
+            </div>
+            <div class="form-group">
+                <input type="text" class="form-control item" id="email" placeholder="New Email">
+            </div>
+            <div class="form-group">
+                <button type="button" class="btn btn-block create-account" name="email_button">Update</button>
+            </div>
+        </form>
+    </div>
+    <div class="registration-form" style="padding-top: 10px">
+        <form style="background-color: #0a0909">
+            <div class="form-group">
+                <h4 style="text-align: center; color: white">Change Password</h4>
+                <hr style="height: 2px; background-color: white; border-color: white;">
+            </div>
+            <div class="form-group">
+                <input type="text" class="form-control item" id="current_password" placeholder="Current password">
+            </div>
+            <div class="form-group">
+                <input type="text" class="form-control item" id="new_password" placeholder="New password">
+            </div>
+            <div class="form-group">
+                <input type="text" class="form-control item" id="confirm_password" placeholder="Confirm password">
+            </div>
+            <div class="form-group">
+                <button type="button" class="btn btn-block create-account" name="password_button">Update</button>
+            </div>
+        </form>
+    </div>
+{% endblock %}

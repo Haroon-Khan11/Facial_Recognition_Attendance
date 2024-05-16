@@ -8,7 +8,7 @@ Bootstrap5(app)
 
 @app.route("/")
 def home():
-    return render_template("index.html", role='instructor')
+    return render_template("index.html")
 
 
 if __name__ == "__main__":

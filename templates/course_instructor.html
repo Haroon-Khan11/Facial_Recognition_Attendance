@@ -1,0 +1,70 @@
+{% extends "header.html" %}
+{% block title %} Course name {% endblock %}
+
+{% block extra_style %}
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/simple-line-icons/2.4.1/css/simple-line-icons.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/css/bootstrap.min.css">
+    <link rel="stylesheet" href="static/css/style_login.css">
+    <script type="text/javascript" src="https://code.jquery.com/jquery-3.2.1.min.js"></script>
+    <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/jquery.mask/1.14.15/jquery.mask.min.js"></script>
+    <script src="static/js/scripts.js"></script>
+    <style>
+    .nav-tabs .nav-link.active {
+      color: black !important;
+    }
+    </style>
+{% endblock %}
+
+
+{% block content %}
+<nav>
+  <div class="nav nav-tabs" id="nav-tab" role="tablist" style="margin-top: 83px; display: flex; justify-content: center; background-color: #252626">
+    <button class="nav-link active" id="nav-general-tab" data-bs-toggle="tab" data-bs-target="#nav-general" type="button" role="tab" aria-controls="nav-home" aria-selected="true" style="color:white">General</button>
+    <button class="nav-link" id="nav-attendance-tab" data-bs-toggle="tab" data-bs-target="#nav-attendance" type="button" role="tab" aria-controls="nav-profile" aria-selected="false" style="color:white">Take Attendance</button>
+    <button class="nav-link" id="nav-add-students-tab" data-bs-toggle="tab" data-bs-target="#nav-add-students" type="button" role="tab" aria-controls="nav-contact" aria-selected="false" style="color:white">Add Student(s)</button>
+    <button class="nav-link" id="nav-attendance-report-tab" data-bs-toggle="tab" data-bs-target="#nav-attendance-report" type="button" role="tab" aria-controls="nav-disabled" aria-selected="false" style="color:white">Attendance Report</button>
+    <button class="nav-link" id="nav-delete-course-tab" data-bs-toggle="tab" data-bs-target="#nav-delete" type="button" role="tab" aria-controls="nav-disabled" aria-selected="false" style="color:white">Delete Course</button>
+  </div>
+</nav>
+<div class="tab-content" id="nav-tabContent">
+  <div class="tab-pane fade show active" id="nav-general" role="tabpanel" aria-labelledby="nav-general-tab" tabindex="0">
+      <div class="form-group" style="margin-top: 20px; text-align: center">
+        <h1>JavaScript</h1>
+        <h2>SE_303</h2>
+      </div>
+      <div style="display: flex; justify-content: center">
+        <div class="card" style="width: 24rem; padding-top: 10px; text-align: center; background-color: #252626; color: white">
+          <div class="card-body">
+            <h5 style="color: white">Course Description</h5>
+            <hr>
+            <p style="margin: 0 10px 0 10px">Course description is here. what the course is about, and all that</p>
+          </div>
+        </div>
+      </div>
+  </div>
+  <div class="tab-pane fade" id="nav-attendance" role="tabpanel" aria-labelledby="nav-attendance-tab" tabindex="0">
+      <div class="form-group" style="margin-top: 20px; text-align: center">
+        <h1>JavaScript</h1>
+        <h2>SE_303</h2>
+      </div>
+  </div>
+  <div class="tab-pane fade" id="nav-add-students" role="tabpanel" aria-labelledby="nav-add-students-tab" tabindex="0">
+      <div class="form-group" style="margin-top: 20px; text-align: center">
+        <h1>JavaScript</h1>
+        <h2>SE_303</h2>
+      </div>
+  </div>
+  <div class="tab-pane fade" id="nav-attendance-report" role="tabpanel" aria-labelledby="nav-attendance-report-tab" tabindex="0">
+      <div class="form-group" style="margin-top: 20px; text-align: center">
+        <h1>JavaScript</h1>
+        <h2>SE_303</h2>
+      </div>
+  </div>
+  <div class="tab-pane fade" id="nav-delete" role="tabpanel" aria-labelledby="nav-delete-course-tab" tabindex="0">
+      <div class="form-group" style="margin-top: 20px; text-align: center">
+        <h1>JavaScript</h1>
+        <h2>SE_303</h2>
+      </div>
+  </div>
+</div>
+{% endblock %}

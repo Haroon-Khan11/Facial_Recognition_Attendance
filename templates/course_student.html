@@ -1,0 +1,48 @@
+{% extends "header.html" %}
+{% block title %} Course Name {% endblock %}
+
+{% block extra_style %}
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/simple-line-icons/2.4.1/css/simple-line-icons.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/css/bootstrap.min.css">
+    <link rel="stylesheet" href="static/css/style_login.css">
+    <script type="text/javascript" src="https://code.jquery.com/jquery-3.2.1.min.js"></script>
+    <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/jquery.mask/1.14.15/jquery.mask.min.js"></script>
+    <script src="static/js/scripts.js"></script>
+{% endblock %}
+
+{% block content %}
+<div class="form-group" style="margin-top: 120px; text-align: center">
+    <h1>JavaScript</h1>
+    <h2>SE_303</h2>
+</div>
+<div class="form-group" style="margin-top: 30px; display: flex; justify-content: center">
+    <button type="button" class="btn btn-block create-account" name="attendance_button" style="width: 20%; background-color: #5791ff">Give Attendance</button>
+</div>
+<div class="form-group" style="margin-top: 30px; text-align: center">
+    <h2>Attendance Record</h2>
+</div>
+<div class="form-group" style="margin-top: 10px; display: flex; justify-content: center; text-align: center">
+    <table class="table table-dark table-striped" style="width: 30%; text-align: center">
+        <thead>
+            <tr>
+              <th scope="col">Attendance Date</th>
+              <th scope="col">Status</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+              <td>27/03/2024</td>
+              <td style="color: green">Present</td>
+            </tr>
+            <tr>
+              <td>28/03/2024</td>
+              <td style="color: green">Present</td>
+            </tr>
+            <tr>
+              <td>29/03/2024</td>
+              <td style="color: red">Absent</td>
+            </tr>
+          </tbody>
+    </table>
+</div>
+{% endblock %}

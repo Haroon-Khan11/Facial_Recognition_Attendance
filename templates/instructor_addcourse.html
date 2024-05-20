@@ -1,0 +1,26 @@
+{% extends "header.html" %}
+{% block title %} Add Course {% endblock %}
+
+{% block extra_style %}
+<link rel="stylesheet" href="static/css/style_login.css">
+{% endblock %}
+
+{% block content %}
+<div style="display: flex; justify-content: center; align-items: center; margin-top: 100px; flex-direction: column;">
+    <h2>Add a new course</h2>
+    <form action="#" method="POST">
+      <div class="form-group" style="margin-top: 10px">
+        <input type="text" class="form-control item" id="course_name" name="course_name" placeholder="Course Name" required>
+      </div>
+      <div class="form-group" style="margin-top: 10px">
+        <input type="text" class="form-control item" id="course_code" name="course_code" placeholder="Course Code" required>
+      </div>
+      <div class="form-group" style="margin-top: 10px;">
+        <textarea class="form-control item" id="course_description" name="course_description" placeholder="Course Description" rows="4" required></textarea>
+      </div>
+      <div class="form-group">
+        <button type="submit" class="btn btn-primary" style="margin-top: 10px;">Create Course</button>
+      </div>
+    </form>
+</div>
+{% endblock %}

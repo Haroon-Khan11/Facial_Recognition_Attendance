@@ -60,6 +60,40 @@
           color: black !important;
         }
     </style>
+    <script>
+    document.addEventListener('DOMContentLoaded', function () {
+      const urlParams = new URLSearchParams(window.location.search);
+      const activeTab = urlParams.get('tab');
+
+      if (activeTab) {
+        const activeTabButton = document.querySelector(`#nav-tab button[data-bs-target="#${activeTab}"]`);
+        if (activeTabButton) {
+          activeTabButton.click();
+        }
+      }
+
+      const startBtn = document.getElementById('start-btn');
+      const endBtn = document.getElementById('end-btn');
+
+      startBtn.addEventListener('click', function () {
+        startBtn.disabled = true;
+        endBtn.disabled = false;
+      });
+
+      endBtn.addEventListener('click', function () {
+        endBtn.disabled = true;
+        startBtn.disabled = false;
+      });
+    });
+
+    document.querySelectorAll('.nav-link').forEach(tab => {
+      tab.addEventListener('click', function () {
+        const newUrl = new URL(window.location.href);
+        newUrl.searchParams.set('tab', tab.getAttribute('data-bs-target').substring(1));
+        window.history.pushState({}, '', newUrl);
+      });
+    });
+  </script>
 {% endblock %}
 
 {% block content %}
@@ -69,7 +103,7 @@
         <button class="nav-link active" id="nav-general-tab" data-bs-toggle="tab" data-bs-target="#nav-general" type="button" role="tab" aria-controls="nav-home" aria-selected="true" style="color:white">General</button>
       </div>
       <div class="nav-item">
-        <button class="nav-link" id="nav-student-list-tab" data-bs-toggle="tab" data-bs-target="#nav-student-list" type="button" role="tab" aria-controls="nav-profile" aria-selected="false" style="color:white">Student's list</button>
+        <button class="nav-link" id="nav-student-list-tab" data-bs-toggle="tab" data-bs-target="#nav-student-list" type="button" role="tab" aria-controls="nav-profile" aria-selected="false" style="color:white" data-course-id="{{ course.id }}">Student's list</button>
       </div>
       <div class="nav-item">
         <button class="nav-link" id="nav-add-students-tab" data-bs-toggle="tab" data-bs-target="#nav-add-students" type="button" role="tab" aria-controls="nav-contact" aria-selected="false" style="color:white">Add Student(s)</button>
@@ -91,23 +125,23 @@
 <div class="tab-content" id="nav-tabContent">
   <div class="tab-pane fade show active" id="nav-general" role="tabpanel" aria-labelledby="nav-general-tab" tabindex="0">
       <div class="form-group" style="margin-top: 20px; text-align: center">
-        <h1>JavaScript</h1>
-        <h2>SE_303</h2>
+        <h1>{{ course.course_name }}</h1>
+        <h3>{{ course.course_code }}</h3>
       </div>
       <div style="display: flex; justify-content: center">
         <div class="card" style="width: 24rem; padding-top: 10px; text-align: center; background-color: #252626; color: white">
           <div class="card-body">
             <h5 style="color: white">Course Description</h5>
             <hr>
-            <p style="margin: 0 10px 0 10px">Course description is here. what the course is about, and all that</p>
+            <p style="margin: 0 10px 0 10px">{{ course.course_description }}</p>
           </div>
         </div>
       </div>
       <div class="form-group" style="margin-top: 20px; text-align: center">
-          <button id="start-btn" type="button" class="btn btn-primary">Start Attendance Session</button>
+          <button id="start-btn" type="button" class="btn btn-primary"{% if attendance_started %}disabled{% endif %}>Start Attendance Session</button>
       </div>
       <div class="form-group" style="margin-top: 20px; text-align: center">
-          <button id="end-btn" type="button" class="btn btn-danger" disabled>End Attendance Session</button>
+          <button id="end-btn" type="button" class="btn btn-danger" {% if not attendance_started %}disabled{% endif %} disabled>End Attendance Session</button>
       </div>
       <div class="form-group" style="margin-top: 20px; text-align: center">
           <button id="delete-btn" type="button" class="btn btn-danger">Delete Course</button>
@@ -115,11 +149,16 @@
   </div>
   <div class="tab-pane fade" id="nav-student-list" role="tabpanel" aria-labelledby="nav-student-list-tab" tabindex="0">
       <div class="form-group" style="margin-top: 20px; text-align: center">
-        <h1>JavaScript</h1>
-        <h2>SE_303</h2>
+        <h1>{{ course.course_name }}</h1>
+        <h3>{{ course.course_code }}</h3>
+      </div>
+      <div class="form-group" style="margin-top: 20px; text-align: center">
+          <h3>
+              Enrolled Students:
+          </h3>
       </div>
       <div style="margin-top: 10px; display: flex; justify-content: center; text-align: center">
-          <table class="table table-dark table-striped" style="width: 30%; text-align: center">
+          <table id="studentTableBodyy" class="table table-dark table-striped" style="width: 30%; text-align: center">
             <thead>
                 <tr>
                   <th scope="col">Full Name</th>
@@ -128,37 +167,28 @@
                 </tr>
             </thead>
             <tbody>
-                <tr>
-                  <td>Haroon Nematullah S J</td>
-                  <td>200706805</td>
-                  <td><a href="#" style="color: red">&#10006;</a></td>
-                </tr>
-                <tr>
-                  <td>Haroon Nematullah S J</td>
-                  <td>200706805</td>
-                  <td><a href="#" style="color: red">&#10006;</a></td>
-                </tr>
-                <tr>
-                  <td>Haroon Nematullah S J</td>
-                  <td>200706805</td>
-                  <td><a href="#" style="color: red">&#10006;</a></td>
-                </tr>
-              </tbody>
+
+            </tbody>
           </table>
       </div>
   </div>
   <div class="tab-pane fade" id="nav-add-students" role="tabpanel" aria-labelledby="nav-add-students-tab" tabindex="0">
       <div class="form-group" style="margin-top: 20px; text-align: center">
-        <h1>JavaScript</h1>
-        <h2>SE_303</h2>
+        <h1>{{ course.course_name }}</h1>
+        <h3>{{ course.course_code }}</h3>
       </div>
       <div class="registration-form" style="display: flex; justify-content: center; margin-top: 20px; padding: 0">
-          <form style="background-color: #252626; padding: 20px">
+          <form style="background-color: #252626; padding: 20px" method="post" action="#">
               <div class="form-group" style="text-align: center">
-                  <input type="text" class="form-control item" id="student_number" placeholder="Student ID">
-                  <button type="button" class="btn btn-primary">Add</button>
-                  <h3 style="color: white; margin: 5px">OR</h3>
-                  <button type="button" class="btn btn-primary">Upload excel file</button>
+                <input type="text" class="form-control item" id="student_name" placeholder="Full Name">
+                <br>
+                <input type="text" class="form-control item" id="student_number" placeholder="Student ID" style="margin-top: 5px">
+                <br>
+                <button type="button" class="btn btn-primary" style="margin-top: 5px" id="addStudentBtn">Add</button>
+                <h3 style="color: white; margin: 5px">OR</h3>
+                <input type="file" class="form-control" id="file-input" accept=".csv"/>
+                <br>
+                <button type="button" id="upload-btn" class="btn btn-primary">Upload excel file</button>
               </div>
           </form>
       </div>
@@ -171,33 +201,19 @@
                   <th scope="col"></th>
                 </tr>
             </thead>
-            <tbody>
-                <tr>
-                  <td>Haroon Nematullah S J</td>
-                  <td>200706805</td>
-                  <td><a href="#" style="color: red">&#10006;</a></td>
-                </tr>
-                <tr>
-                  <td>Haroon Nematullah S J</td>
-                  <td>200706805</td>
-                  <td><a href="#" style="color: red">&#10006;</a></td>
-                </tr>
-                <tr>
-                  <td>Haroon Nematullah S J</td>
-                  <td>200706805</td>
-                  <td><a href="#" style="color: red">&#10006;</a></td>
-                </tr>
-              </tbody>
+            <tbody id="studentTableBody">
+            <!-- Existing table rows -->
+            </tbody>
           </table>
       </div>
       <div class="form-group" style="margin-top: 20px; text-align: center">
-          <button type="button" class="btn btn-primary">Save Changes</button>
+          <button type="button" class="btn btn-primary" id="saveChangesBtn">Save Changes</button>
       </div>
   </div>
   <div class="tab-pane fade" id="nav-attendance-report" role="tabpanel" aria-labelledby="nav-attendance-report-tab" tabindex="0">
       <div class="form-group" style="margin-top: 20px; text-align: center">
-        <h1>JavaScript</h1>
-        <h2>SE_303</h2>
+        <h1>{{ course.course_name }}</h1>
+        <h3>{{ course.course_code }}</h3>
       </div>
       <div style="margin-top: 10px; display: flex; justify-content: center; text-align: center">
           <table class="table table-dark table-striped" style="width: 30%; text-align: center">
@@ -210,30 +226,350 @@
                 </tr>
             </thead>
             <tbody>
-                <tr>
-                  <td>Haroon Nematullah S J</td>
-                  <td>200706805</td>
-                  <td><a href="#" style="color: green">5</a></td>
-                  <td><a href="#" style="color: red">3</a></td>
-                </tr>
-                <tr>
-                  <td>Haroon Nematullah S J</td>
-                  <td>200706805</td>
-                  <td><a href="#" style="color: green">5</a></td>
-                  <td><a href="#" style="color: red">3</a></td>
-                </tr>
-                <tr>
-                  <td>Haroon Nematullah S J</td>
-                  <td>200706805</td>
-                  <td><a href="#" style="color: green">5</a></td>
-                  <td><a href="#" style="color: red">3</a></td>
-                </tr>
-              </tbody>
+            </tbody>
           </table>
       </div>
       <div class="form-group" style="margin-top: 20px; text-align: center">
-          <button id="download-btn" type="button" class="btn btn-primary">Download report</button>
+          <button id="download-btn" type="button" class="btn btn-primary" onclick="window.location.href='/download_attendance_report?course_id={{ course.id }}'">Download report</button>
       </div>
   </div>
 </div>
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script>
+$(document).ready(function() {
+    $('#addStudentBtn').click(function() {
+        var fullName = $('#student_name').val();
+        var studentID = $('#student_number').val();
+
+        // Check if inputs are not empty
+        if (fullName.trim() !== '' && studentID.trim() !== '') {
+            // Append new row to the table body
+            $('#studentTableBody').append(
+                '<tr>' +
+                '<td>' + fullName + '</td>' +
+                '<td>' + studentID + '</td>' +
+                '<td><a href="#" class="delete-row" style="color: red">&#10006;</a></td>' +
+                '</tr>'
+            );
+
+            // Clear input fields
+            $('#student_name').val('');
+            $('#student_number').val('');
+        }
+    });
+
+    // Event delegation to handle dynamic deletion of rows
+    $('#studentTableBody').on('click', '.delete-row', function(e) {
+        e.preventDefault();
+        $(this).closest('tr').remove();
+    });
+
+    $('#saveChangesBtn').click(function() {
+        var tableData = [];
+        $('#studentTableBody tr').each(function() {
+            var row = $(this);
+            var fullName = row.find('td').eq(0).text();
+            var studentID = row.find('td').eq(1).text();
+            tableData.push({ fullname: fullName, student_id: studentID });
+        });
+
+        $.ajax({
+            url: "{{ url_for('add_students', course_id=course.id, instructor_id=instructor_id) }}",
+            method: "POST",
+            contentType: "application/json",
+            data: JSON.stringify({ students: tableData }),
+            success: function(response) {
+                var message = response.message;
+                var addedStudents = response.added_students;
+                var existingStudents = response.existing_students;
+
+                alert(message);
+
+                // Clear only the rows for added students
+                $('#studentTableBody tr').each(function() {
+                    var row = $(this);
+                    var studentID = row.find('td').eq(1).text();
+
+                    if (addedStudents.some(student => student.student_id === studentID)) {
+                        row.remove();
+                    }
+                });
+
+                // Show a message or handle the existing students as needed
+                if (existingStudents.length > 0) {
+                    var existingNames = existingStudents.map(student => student.fullname).join(", ");
+                    alert("The following students already exist and were not added again: " + existingNames);
+                }
+            },
+            error: function(response) {
+                alert("An error occurred while saving the changes.");
+            }
+        });
+    });
+});
+
+</script>
+<script>
+    document.addEventListener('DOMContentLoaded', (event) => {
+    const tabs = document.querySelectorAll('.nav-link');
+
+    tabs.forEach(tab => {
+        tab.addEventListener('shown.bs.tab', (event) => {
+            const targetId = event.target.getAttribute('data-bs-target');
+            const courseId = {{ course.id }};
+            const urlMap = {
+                '#nav-general': '/load-general',
+                '#nav-student-list': `/load-student-list?course_id=${courseId}`,
+                '#nav-add-students': '/load-add-students',
+                '#nav-attendance-report': `/get_attendance_data?course_id=${courseId}`,
+            };
+
+            fetch(urlMap[targetId])
+                .then(response => response.json())
+                .then(data => {
+                    // Handle data loading for the tab content
+                    if (targetId === '#nav-student-list') {
+                        updateStudentListTable(data.students);
+                    }
+                    if (targetId === '#nav-attendance-report') {
+                        updateAttendanceTable(data.attendance);
+                    }
+                })
+                .catch(error => console.error('Error loading tab content:', error));
+        });
+    });
+});
+
+function updateStudentListTable(students) {
+    const tableBody = document.getElementById('studentTableBodyy');
+    tableBody.innerHTML = ''; // Clear existing table rows
+
+    students.forEach(student => {
+        const row = document.createElement('tr');
+
+        const nameCell = document.createElement('td');
+        nameCell.textContent = student.full_name;
+        row.appendChild(nameCell);
+
+        const idCell = document.createElement('td');
+        idCell.textContent = student.student_id;
+        row.appendChild(idCell);
+
+        const actionCell = document.createElement('td');
+        const removeLink = document.createElement('a');
+        removeLink.href = '#';
+        removeLink.style.color = 'red';
+        removeLink.innerHTML = '&#10006;';
+        removeLink.addEventListener('click', (event) => {
+            event.preventDefault();
+            removeStudent(student.student_id, row, {{ course.id }});
+        });
+        actionCell.appendChild(removeLink);
+        row.appendChild(actionCell);
+
+        tableBody.appendChild(row);
+    });
+}
+
+function removeStudent(studentId, row, courseId) {
+    fetch(`/remove-student?student_id=${studentId}&course_id=${courseId}`, {
+        method: 'DELETE'
+    })
+    .then(response => {
+        if (response.ok) {
+            row.remove();
+        } else {
+            console.error('Failed to delete student');
+        }
+    })
+    .catch(error => console.error('Error deleting student:', error));
+}
+
+function updateAttendanceTable(attendanceData) {
+    const tableBody = document.querySelector('#nav-attendance-report tbody');
+    tableBody.innerHTML = ''; // Clear existing table rows
+
+    attendanceData.forEach(record => {
+        const row = document.createElement('tr');
+
+        const nameCell = document.createElement('td');
+        nameCell.textContent = record.full_name;
+        row.appendChild(nameCell);
+
+        const idCell = document.createElement('td');
+        idCell.textContent = record.student_id;
+        row.appendChild(idCell);
+
+        const presentCell = document.createElement('td');
+        presentCell.textContent = record.days_present;
+        row.appendChild(presentCell);
+
+        const absentCell = document.createElement('td');
+        absentCell.textContent = record.days_absent;
+        row.appendChild(absentCell);
+
+        tableBody.appendChild(row);
+    });
+}
+
+</script>
+<script>
+    $(document).ready(function(){
+        var courseId = {{ course.id }};
+
+        $('#start-btn').click(function(){
+            $.ajax({
+                url: '/start_attendance',
+                method: 'POST',
+                contentType: 'application/json',
+                data: JSON.stringify({ 'course_id': courseId }),
+                success: function(response) {
+                    alert('Attendance session started successfully');
+                    $('#start-btn').prop('disabled', true);
+                    $('#end-btn').prop('disabled', false);
+                },
+                error: function(error) {
+                    alert('Error starting attendance session');
+                }
+            });
+        });
+
+        $('#end-btn').click(function(){
+            $.ajax({
+                url: '/end_attendance',
+                method: 'POST',
+                contentType: 'application/json',
+                data: JSON.stringify({ 'course_id': courseId }),
+                success: function(response) {
+                    alert('Attendance session ended successfully');
+                    $('#start-btn').prop('disabled', false);
+                    $('#end-btn').prop('disabled', true);
+                },
+                error: function(error) {
+                    alert('Error ending attendance session');
+                }
+            });
+        });
+
+        $('#delete-btn').click(function(){
+            if(confirm('Are you sure you want to delete this course?')) {
+                $.ajax({
+                    url: '/delete_course',
+                    method: 'POST',
+                    contentType: 'application/json',
+                    data: JSON.stringify({ 'course_id': courseId }),
+                    success: function(response) {
+                        alert('Course deleted successfully');
+                        // Redirect or update the page as needed
+                    },
+                    error: function(error) {
+                        alert('Error deleting course');
+                    }
+                });
+            }
+        });
+    });
+</script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Select the tab and attach event listener
+    var tab = document.getElementById('nav-general-tab');
+
+    tab.addEventListener('shown.bs.tab', function(event) {
+        // Perform AJAX request when tab is active
+        fetch("{{ url_for('instructor_course', course_id=course.id, instructor_id=instructor_id) }}", {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                // Add any additional data you want to send to the server here
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            console.log(data); // Handle the response from the server
+            if (data.status === 'success') {
+                // Perform any actions on success
+                console.log(data.message);
+            } else {
+                // Handle errors
+                console.error('Error:', data.message);
+            }
+        })
+        .catch((error) => {
+            console.error('Error:', error);
+        });
+    });
+});
+</script>
+<script>
+    document.addEventListener('DOMContentLoaded', (event) => {
+    document.getElementById('upload-btn').addEventListener('click', () => {
+        const fileInput = document.getElementById('file-input');
+        const file = fileInput.files[0];
+        const formData = new FormData();
+        formData.append('file', file);
+        formData.append('course_id', {{ course.id }});
+
+        fetch('/upload_enrolled_courses', {
+            method: 'POST',
+            body: formData
+        })
+        .then(response => response.json())
+        .then(data => {
+            console.log(data); // Handle success or error response
+        })
+        .catch(error => console.error('Error uploading file:', error));
+    });
+});
+
+</script>
+<script>
+$(document).ready(function() {
+    $('#upload-btn').click(function() {
+        var fileInput = $('#file-input')[0].files[0];
+        var formData = new FormData();
+        formData.append('file', fileInput);
+        formData.append('course_id', {{ course.id }});
+
+        $.ajax({
+            url: '/upload_enrolled_courses',
+            type: 'POST',
+            data: formData,
+            processData: false,
+            contentType: false,
+            success: function(response) {
+                // Assuming the response contains the data in JSON format
+                var studentData = response.data; // Adjust according to your actual response structure
+
+                // Clear existing table rows
+                $('#studentTableBody').empty();
+
+                // Populate table with new data
+                $.each(studentData, function(index, student) {
+                    var row = '<tr>' +
+                        '<td>' + student.full_name + '</td>' +
+                        '<td>' + student.student_id + '</td>' +
+                        '<td><a href="#" class="delete-row" style="color: red">&#10006;</a></td>' +
+                        '</tr>';
+                    $('#studentTableBody').append(row);
+                });
+            },
+            error: function(xhr, status, error) {
+                // Handle error
+                console.error(xhr.responseText);
+            }
+        });
+    });
+
+    // Event delegation to handle dynamic deletion of rows
+    $('#studentTableBody').on('click', '.delete-row', function(e) {
+        e.preventDefault();
+        $(this).closest('tr').remove();
+    });
+});
+</script>
+
+
 {% endblock %}

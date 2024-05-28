@@ -8,7 +8,7 @@
 {% block content %}
 <div style="display: flex; justify-content: center; align-items: center; margin-top: 100px; flex-direction: column;">
     <h2>Add a new course</h2>
-    <form action="#" method="POST">
+    <form action="{{ url_for('instructor_add_course', instructor_id=instructor_id) }}" method="post">
       <div class="form-group" style="margin-top: 10px">
         <input type="text" class="form-control item" id="course_name" name="course_name" placeholder="Course Name" required>
       </div>

@@ -3,13 +3,16 @@
 
 {% block content %}
 <h1 style="color: black; text-align: center; padding-top: 120px">Courses</h1>
-<div style="display: flex; justify-content: center">
-    <a href="#"><div class="card" style="width: 18rem; padding-top: 30px; text-align: center; background-color: #0a0909; color: white">
+{% for course in courses: %}
+<div style="display: flex; justify-content: center; margin-top: 15px;">
+    <a href="{{ url_for('instructor_course', course_id=course.id, instructor_id=instructor_id) }}"><div class="card" style="width: 18rem; padding-top: 30px; text-align: center; background-color: #0a0909; color: white">
       <div class="card-body">
-        <h5 class="card-title">Course Name</h5>
-        <h5 class="card-subtitle" style="color: white">Code</h5>
+        <h5 class="card-title">{{ course.course_name }}</h5>
+        <h5 class="card-subtitle" style="color: white">{{ course.course_code }}</h5>
         <hr>
       </div>
     </div></a>
+    <br>
 </div>
+{% endfor %}
 {% endblock %}

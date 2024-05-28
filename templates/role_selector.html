@@ -18,8 +18,8 @@
                 Select Role
               </button>
               <ul class="dropdown-menu" style="width: 100%">
-                <li><a class="dropdown-item" href="#">Student</a></li>
-                <li><a class="dropdown-item" href="#">Instructor</a></li>
+                <li><a class="dropdown-item" href="{{ url_for('signup', role='student') }}">Student</a></li>
+                <li><a class="dropdown-item" href="{{ url_for('signup', role='instructor') }}">Instructor</a></li>
               </ul>
             </div>
         </div>

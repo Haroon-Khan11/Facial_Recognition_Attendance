@@ -1,0 +1,29 @@
+{% extends "header.html" %}
+{% block title %} Student Home {% endblock %}
+
+{% block content %}
+<div class="form-group" style="margin-top: 30px; display: flex; justify-content: center">
+    <form action="{{ url_for('give_attendance', course_id=course_id) }}" method="POST">
+        <button type="submit" class="btn btn-block create-account" id="attendance_button" style="width: 20%; background-color: #5791ff">Give Attendance</button>
+    </form>
+</div>
+{% endblock %}
+<script>
+    $(document).ready(function(){
+        $('#attendance_button').click(function(){
+            var courseId = {{ course_id }};
+            $.ajax({
+                url: '/give_attendance/' + courseId,
+                method: 'POST',
+                contentType: 'application/json',
+                success: function(response) {
+                    alert(response.message);
+                },
+                error: function(error) {
+                    alert('Error: ' + error.responseJSON.message);
+                }
+            });
+        });
+    });
+</script>
+

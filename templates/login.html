@@ -4,25 +4,33 @@
     <meta charset="utf-8">
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>The Easiest Way to Add Input Masks to Your Forms</title>
+    <title>Login</title>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/simple-line-icons/2.4.1/css/simple-line-icons.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/css/bootstrap.min.css">
     <link rel="stylesheet" href="static/css/style_login.css">
 </head>
 <body>
     <div class="registration-form">
-        <form style="background-color: #403B3B">
+        <form style="background-color: #403B3B" method="post" action="{{ url_for('login') }}">
             <div class="form-icon">
                 <span><i class="icon icon-user"></i></span>
             </div>
+            <!-- Adding Flash message here for users trying to register twice -->
+              {% with messages = get_flashed_messages() %}
+              {% if messages %}
+              {% for message in messages %}
+              <p class="flash" style="color: red; text-align: center">{{ message }}</p>
+              {% endfor %}
+              {% endif %}
+              {% endwith %}
             <div class="form-group">
-                <input type="text" class="form-control item" id="username" placeholder="Student/Instructor Number">
+                <input type="text" class="form-control item" id="username" name="username" placeholder="Student/Instructor Number">
             </div>
             <div class="form-group">
-                <input type="password" class="form-control item" id="password" placeholder="Password">
+                <input type="password" class="form-control item" id="password" name="password" placeholder="Password">
             </div>
             <div class="form-group">
-                <button type="button" class="btn btn-block create-account">Login</button>
+                <button type="submit" class="btn btn-block create-account">Login</button>
             </div>
             <div class="form-group" style="text-align: center">
                 <a href="#">Login with Face ID</a>
@@ -31,7 +39,7 @@
                 <a href="#">Forgot Password?</a>
             </div>
             <div class="form-group" style="text-align: center">
-                <p style="color: #F8F2F2">Don't have an account? <a href="#">Register</a></p>
+                <p style="color: #F8F2F2">Don't have an account? <a href="{{ url_for('role_selector') }}">Register</a></p>
             </div>
         </form>
     </div>

@@ -1,6 +1,6 @@
 from datetime import date
 import numpy as np
-from flask import Flask, abort, render_template, redirect, url_for, flash, request, jsonify, send_file, Response, \
+from flask import Flask, render_template, redirect, url_for, flash, request, jsonify, Response, \
     make_response
 from io import StringIO
 import csv

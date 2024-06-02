@@ -13,10 +13,12 @@ from werkzeug.security import generate_password_hash, check_password_hash
 import cv2
 import json
 from sklearn.neighbors import KNeighborsClassifier
+import os
 
 app = Flask(__name__)
 Bootstrap5(app)
-app.config['SECRET_KEY'] = '8BYkEfBA6O6donzWlSihBXox7C0sKR6b'
+# app.config['SECRET_KEY'] = '8BYkEfBA6O6donzWlSihBXox7C0sKR6b'
+app.config['SECRET_KEY'] = os.environ.get('FLASK_KEY')
 
 
 # CREATE DATABASE
@@ -31,7 +33,8 @@ global_data = {}
 user_id_global = None
 video_capture_active = None
 
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///facial_recognition_attendance.db'
+# app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///facial_recognition_attendance.db'
+app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get("DB_URI", "sqlite:///facial_recognition_attendance.db")
 db = SQLAlchemy(model_class=Base)
 db.init_app(app)
 

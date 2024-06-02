@@ -94,6 +94,11 @@
       });
     });
   </script>
+    <script>
+        $(function () {
+          $('[data-toggle="popover"]').popover()
+        })
+    </script>
 {% endblock %}
 
 {% block content %}
@@ -112,8 +117,8 @@
         <button class="nav-link" id="nav-attendance-report-tab" data-bs-toggle="tab" data-bs-target="#nav-attendance-report" type="button" role="tab" aria-controls="nav-disabled" aria-selected="false" style="color:white">Attendance Report</button>
       </div>
       <div class="nav-item dropdown">
-        <button class="nav-link dropdown-toggle" id="nav-more-tab" data-bs-toggle="dropdown" aria-expanded="false" style="color:white">Menu</button>
-        <ul class="dropdown-menu" aria-labelledby="nav-more-tab" style="background-color: #252626;">
+        <button class="nav-link dropdown-toggle" id="nav-more-tab" data-bs-toggle="dropdown" aria-expanded="false" style="color:white" type="button">Menu</button>
+        <ul class="dropdown-menu dropdown-menu-dark" aria-labelledby="nav-more-tab" style="background-color: #252626;">
           <li><button class="dropdown-item" id="nav-general-dropdown" data-bs-toggle="tab" data-bs-target="#nav-general" type="button" role="tab" aria-controls="nav-home" aria-selected="false" style="color:white">General</button></li>
           <li><button class="dropdown-item" id="nav-attendance-dropdown" data-bs-toggle="tab" data-bs-target="#nav-student-list" type="button" role="tab" aria-controls="nav-profile" aria-selected="false" style="color:white">Student's list</button></li>
           <li><button class="dropdown-item" id="nav-add-students-dropdown" data-bs-toggle="tab" data-bs-target="#nav-add-students" type="button" role="tab" aria-controls="nav-contact" aria-selected="false" style="color:white">Add Student(s)</button></li>
@@ -141,7 +146,7 @@
           <button id="start-btn" type="button" class="btn btn-primary"{% if attendance_started %}disabled{% endif %}>Start Attendance Session</button>
       </div>
       <div class="form-group" style="margin-top: 20px; text-align: center">
-          <button id="end-btn" type="button" class="btn btn-danger" {% if not attendance_started %}disabled{% endif %} disabled>End Attendance Session</button>
+          <button id="end-btn" type="button" class="btn btn-danger" {% if not attendance_started %}disabled{% endif %}>End Attendance Session</button>
       </div>
       <div class="form-group" style="margin-top: 20px; text-align: center">
           <button id="delete-btn" type="button" class="btn btn-danger">Delete Course</button>
@@ -178,20 +183,26 @@
         <h3>{{ course.course_code }}</h3>
       </div>
       <div class="registration-form" style="display: flex; justify-content: center; margin-top: 20px; padding: 0">
-          <form style="background-color: #252626; padding: 20px" method="post" action="#">
-              <div class="form-group" style="text-align: center">
-                <input type="text" class="form-control item" id="student_name" placeholder="Full Name">
-                <br>
-                <input type="text" class="form-control item" id="student_number" placeholder="Student ID" style="margin-top: 5px">
-                <br>
-                <button type="button" class="btn btn-primary" style="margin-top: 5px" id="addStudentBtn">Add</button>
-                <h3 style="color: white; margin: 5px">OR</h3>
-                <input type="file" class="form-control" id="file-input" accept=".csv"/>
-                <br>
-                <button type="button" id="upload-btn" class="btn btn-primary">Upload excel file</button>
-              </div>
-          </form>
-      </div>
+            <form style="background-color: #252626; padding: 20px" method="post" action="#">
+                <div class="form-group" style="text-align: center">
+                    <input type="text" class="form-control item" id="student_name" placeholder="Full Name">
+                    <br>
+                    <input type="text" class="form-control item" id="student_number" placeholder="Student ID" style="margin-top: 2px">
+                    <br>
+                    <button type="button" class="btn btn-primary" style="margin-top: 2px; width: 50%;" id="addStudentBtn">Add</button>
+                    <h3 style="color: white; margin: 10px">OR</h3>
+                    <div class="file-input-container">
+                        <input type="file" class="form-control" id="file-input" accept=".csv" style="margin-top: 3px"/>
+                        <label for="file-input" class="file-label">
+                            Choose File
+                        </label>
+                    </div>
+                    <button type="button" id="upload-btn" class="btn btn-primary">Upload excel file</button>
+                    <button type="button" class="btn btn-light" data-toggle="popover" title="The csv file must contain only two columns named 'Full name' and 'Student ID'. Also, it must not contain any duplicate values for the student ID.">?</button>
+                </div>
+            </form>
+        </div>
+
       <div style="margin-top: 10px; display: flex; justify-content: center; text-align: center">
           <table class="table table-dark table-striped" style="width: 30%; text-align: center">
             <thead>
@@ -234,6 +245,7 @@
       </div>
   </div>
 </div>
+
 <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 <script>
 $(document).ready(function() {
@@ -312,6 +324,110 @@ $(document).ready(function() {
 <script>
     document.addEventListener('DOMContentLoaded', (event) => {
     const tabs = document.querySelectorAll('.nav-link');
+
+    tabs.forEach(tab => {
+        tab.addEventListener('shown.bs.tab', (event) => {
+            const targetId = event.target.getAttribute('data-bs-target');
+            const courseId = {{ course.id }};
+            const urlMap = {
+                '#nav-general': '/load-general',
+                '#nav-student-list': `/load-student-list?course_id=${courseId}`,
+                '#nav-add-students': '/load-add-students',
+                '#nav-attendance-report': `/get_attendance_data?course_id=${courseId}`,
+            };
+
+            fetch(urlMap[targetId])
+                .then(response => response.json())
+                .then(data => {
+                    // Handle data loading for the tab content
+                    if (targetId === '#nav-student-list') {
+                        updateStudentListTable(data.students);
+                    }
+                    if (targetId === '#nav-attendance-report') {
+                        updateAttendanceTable(data.attendance);
+                    }
+                })
+                .catch(error => console.error('Error loading tab content:', error));
+        });
+    });
+});
+
+function updateStudentListTable(students) {
+    const tableBody = document.getElementById('studentTableBodyy');
+    tableBody.innerHTML = ''; // Clear existing table rows
+
+    students.forEach(student => {
+        const row = document.createElement('tr');
+
+        const nameCell = document.createElement('td');
+        nameCell.textContent = student.full_name;
+        row.appendChild(nameCell);
+
+        const idCell = document.createElement('td');
+        idCell.textContent = student.student_id;
+        row.appendChild(idCell);
+
+        const actionCell = document.createElement('td');
+        const removeLink = document.createElement('a');
+        removeLink.href = '#';
+        removeLink.style.color = 'red';
+        removeLink.innerHTML = '&#10006;';
+        removeLink.addEventListener('click', (event) => {
+            event.preventDefault();
+            removeStudent(student.student_id, row, {{ course.id }});
+        });
+        actionCell.appendChild(removeLink);
+        row.appendChild(actionCell);
+
+        tableBody.appendChild(row);
+    });
+}
+
+function removeStudent(studentId, row, courseId) {
+    fetch(`/remove-student?student_id=${studentId}&course_id=${courseId}`, {
+        method: 'DELETE'
+    })
+    .then(response => {
+        if (response.ok) {
+            row.remove();
+        } else {
+            console.error('Failed to delete student');
+        }
+    })
+    .catch(error => console.error('Error deleting student:', error));
+}
+
+function updateAttendanceTable(attendanceData) {
+    const tableBody = document.querySelector('#nav-attendance-report tbody');
+    tableBody.innerHTML = ''; // Clear existing table rows
+
+    attendanceData.forEach(record => {
+        const row = document.createElement('tr');
+
+        const nameCell = document.createElement('td');
+        nameCell.textContent = record.full_name;
+        row.appendChild(nameCell);
+
+        const idCell = document.createElement('td');
+        idCell.textContent = record.student_id;
+        row.appendChild(idCell);
+
+        const presentCell = document.createElement('td');
+        presentCell.textContent = record.days_present;
+        row.appendChild(presentCell);
+
+        const absentCell = document.createElement('td');
+        absentCell.textContent = record.days_absent;
+        row.appendChild(absentCell);
+
+        tableBody.appendChild(row);
+    });
+}
+
+</script>
+<script>
+    document.addEventListener('DOMContentLoaded', (event) => {
+    const tabs = document.querySelectorAll('.dropdown-item');
 
     tabs.forEach(tab => {
         tab.addEventListener('shown.bs.tab', (event) => {
@@ -504,13 +620,13 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 </script>
 <script>
-    document.addEventListener('DOMContentLoaded', (event) => {
+document.addEventListener('DOMContentLoaded', (event) => {
     document.getElementById('upload-btn').addEventListener('click', () => {
         const fileInput = document.getElementById('file-input');
         const file = fileInput.files[0];
         const formData = new FormData();
         formData.append('file', file);
-        formData.append('course_id', {{ course.id }});
+        formData.append('course_id', '{{ course.id }}');  // Ensure course.id is available in the template context
 
         fetch('/upload_enrolled_courses', {
             method: 'POST',
@@ -518,13 +634,52 @@ document.addEventListener('DOMContentLoaded', function() {
         })
         .then(response => response.json())
         .then(data => {
-            console.log(data); // Handle success or error response
+            if (data.error) {
+                showAlert(data.error, 'error');
+            } else {
+                showAlert(data.success, 'success');
+            }
         })
-        .catch(error => console.error('Error uploading file:', error));
+        .catch(error => {
+            console.error('Error uploading file:', error);
+            showAlert('An error occurred while uploading the file.', 'error');
+        });
     });
 });
 
+function showAlert(message, type) {
+    const alertBox = document.createElement('div');
+    alertBox.className = `alert ${type}`;
+    alertBox.textContent = message;
+    document.body.appendChild(alertBox);
+
+    setTimeout(() => {
+        alertBox.remove();
+    }, 5000);
+}
 </script>
+<style>
+.alert {
+    position: fixed;
+    top: 10px;
+    right: 10px;
+    padding: 15px;
+    border-radius: 5px;
+    z-index: 1050; /* Increase the z-index to ensure it's above the navbar */
+    opacity: 0.9;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2); /* Optional: add some shadow for better visibility */
+}
+
+.alert.success {
+    background-color: #4CAF50; /* Green */
+    color: white;
+}
+
+.alert.error {
+    background-color: #f44336; /* Red */
+    color: white;
+}
+</style>
 <script>
 $(document).ready(function() {
     $('#upload-btn').click(function() {
@@ -570,6 +725,7 @@ $(document).ready(function() {
     });
 });
 </script>
+
 
 
 {% endblock %}

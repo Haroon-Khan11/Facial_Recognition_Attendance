@@ -16,44 +16,83 @@
             <div class="form-group">
                 <h4 style="text-align: center; color: white">Personal Information</h4>
                 <hr style="height: 2px; background-color: white; border-color: white;">
-                <h5 style="color: white">Name: Haroon Nematullah S J</h5>
-                <h5 style="color: white">Id: 200706805</h5>
-                <h5 style="color: white">Email: Haroon.n.shah1999@gmail.com</h5>
+                <h5 style="color: white">Name: {{ student.fullname }}</h5>
+                <h5 style="color: white">Id: {{ student.user_id }}</h5>
+                <h5 style="color: white">Email: {{ student.email }}</h5>
             </div>
         </form>
     </div>
     <div class="registration-form" style="padding-top: 10px; display: flex; justify-content: center;">
-        <form style="background-color: #1f1d1d; padding: 20px; min-width: 386.04px">
+        <form id="email-form" style="background-color: #1f1d1d; padding: 20px; min-width: 386.04px">
             <div class="form-group">
                 <h4 style="text-align: center; color: white">Change Email Address</h4>
                 <hr style="height: 2px; background-color: white; border-color: white;">
             </div>
             <div class="form-group">
-                <input type="text" class="form-control item" id="email" placeholder="New Email">
+                <input type="hidden" name="update_type" value="email">
+                <input type="text" class="form-control item" id="new-email" name="new_email" placeholder="New Email">
             </div>
             <div class="form-group">
-                <button type="button" class="btn btn-block create-account" name="email_button" style="background-color: #2596be">Update</button>
+                <button type="button" class="btn btn-block create-account" id="update-email-btn" style="background-color: #2596be">Update</button>
             </div>
         </form>
     </div>
     <div class="registration-form" style="padding-top: 10px; display: flex; justify-content: center;">
-        <form style="background-color: #1f1d1d; padding: 20px; min-width: 386.04px">
+        <form id="password-form" style="background-color: #1f1d1d; padding: 20px; min-width: 386.04px">
             <div class="form-group">
                 <h4 style="text-align: center; color: white">Change Password</h4>
                 <hr style="height: 2px; background-color: white; border-color: white;">
             </div>
             <div class="form-group">
-                <input type="text" class="form-control item" id="current_password" placeholder="Current password">
+                <input type="hidden" name="update_type" value="password">
+                <input type="password" class="form-control item" id="current-password" name="current_password" placeholder="Current password">
             </div>
             <div class="form-group">
-                <input type="text" class="form-control item" id="new_password" placeholder="New password">
+                <input type="password" class="form-control item" id="new-password" name="new_password" placeholder="New password">
             </div>
             <div class="form-group">
-                <input type="text" class="form-control item" id="confirm_password" placeholder="Confirm password">
+                <input type="password" class="form-control item" id="confirm-password" name="confirm_password" placeholder="Confirm password">
             </div>
             <div class="form-group">
-                <button type="button" class="btn btn-block create-account" name="password_button" style="background-color: #2596be">Update</button>
+                <button type="button" class="btn btn-block create-account" id="update-password-btn" style="background-color: #2596be">Update</button>
             </div>
         </form>
     </div>
+    <script>
+document.addEventListener('DOMContentLoaded', (event) => {
+    document.getElementById('update-email-btn').addEventListener('click', () => {
+        const emailForm = document.getElementById('email-form');
+        const formData = new FormData(emailForm);
+
+        fetch('/update_email', {
+            method: 'POST',
+            body: formData
+        })
+        .then(response => response.json())
+        .then(data => {
+            alert(data.message); // Display pop-up message
+            emailForm.reset(); // Clear the form fields
+        })
+        .catch(error => console.error('Error:', error));
+    });
+
+    document.getElementById('update-password-btn').addEventListener('click', () => {
+        const passwordForm = document.getElementById('password-form');
+        const formData = new FormData(passwordForm);
+
+        fetch('/update_password', {
+            method: 'POST',
+            body: formData
+        })
+        .then(response => response.json())
+        .then(data => {
+            alert(data.message); // Display pop-up message
+            passwordForm.reset(); // Clear the form fields
+        })
+        .catch(error => console.error('Error:', error));
+    });
+});
+</script>
 {% endblock %}
+
+

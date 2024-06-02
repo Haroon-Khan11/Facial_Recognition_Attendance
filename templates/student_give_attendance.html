@@ -1,29 +1,49 @@
 {% extends "header.html" %}
 {% block title %} Student Home {% endblock %}
+<link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/css/bootstrap.min.css">
 
 {% block content %}
-<div class="form-group" style="margin-top: 30px; display: flex; justify-content: center">
-    <form action="{{ url_for('give_attendance', course_id=course_id) }}" method="POST">
-        <button type="submit" class="btn btn-block create-account" id="attendance_button" style="width: 20%; background-color: #5791ff">Give Attendance</button>
-    </form>
-</div>
-{% endblock %}
-<script>
-    $(document).ready(function(){
-        $('#attendance_button').click(function(){
-            var courseId = {{ course_id }};
-            $.ajax({
-                url: '/give_attendance/' + courseId,
+    <div class="container">
+        <div class="row justify-content-center">
+            <div class="col-md-6">
+                <div class="card mt-5">
+                    <div class="card-header text-center">
+                        <h2>Login Using Face ID</h2>
+                    </div>
+                    <div class="card-body">
+                        <div class="form-group">
+                            <img id="video-stream" src="{{ url_for('video_feed_attendance', user_id=user_id) }}" alt="Video Stream" style="margin-top: 50px">
+                        </div>
+                        <div class="form-group">
+                            <button type="button" class="btn btn-block create-account" id="attendance_button" style="width: 50%; background-color: #5791ff" onclick="attendanceButtonClicked()">Give Attendance</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <script>
+        function attendanceButtonClicked() {
+            fetch('/attendance_success', {
                 method: 'POST',
-                contentType: 'application/json',
-                success: function(response) {
-                    alert(response.message);
-                },
-                error: function(error) {
-                    alert('Error: ' + error.responseJSON.message);
+            })
+            .then(response => response.json())
+            .then(data => {
+                // Display alert based on the JSON response from the backend
+                if (data.message) {
+                    alert(data.message);
+                    // Check if the message is "Attendance given successfully!"
+                    if (data.message === "Attendance given successfully!") {
+                        // Get the course_id and student_id from the global data or some other source
+                        const courseId = {{ course_id }};
+                        const studentId = {{ student_id }};
+                        // Redirect to the student course page with course_id and student_id
+                        window.location.href = `/CourseS/${studentId}/${courseId}`;
+                    }
                 }
-            });
-        });
-    });
-</script>
+            })
+            .catch(error => console.error('Error:', error));
+        }
+    </script>
 
+{% endblock %}

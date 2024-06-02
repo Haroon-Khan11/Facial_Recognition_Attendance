@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Capture Facial Data</title>
+</head>
+<body>
+    <h1>Capture Facial Data</h1>
+    <img id="video-stream" src="{{ url_for('video_feed', user_id=user_id) }}" alt="Video Stream">
+    <script>
+        function checkCompletion() {
+            fetch('/check_capture_completion')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.completed) {
+                        window.location.href = "/capture_completion_redirect";
+                    } else {
+                        setTimeout(checkCompletion, 1000); // Check again after 1 second
+                    }
+                });
+        }
+
+        // Start checking for completion after a delay
+        setTimeout(checkCompletion, 1000);
+    </script>
+</body>
+</html>

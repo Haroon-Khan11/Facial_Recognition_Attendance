@@ -1,19 +1,18 @@
 from datetime import date
+import numpy as np
 from flask import Flask, abort, render_template, redirect, url_for, flash, request, jsonify, send_file, Response, \
     make_response
 from io import StringIO
 import csv
 from flask_bootstrap import Bootstrap5
-from flask_ckeditor import CKEditor, CKEditorField
-from flask_gravatar import Gravatar
-from flask_login import UserMixin, login_user, LoginManager, current_user, logout_user, login_manager, login_required
+from flask_login import UserMixin, login_user, LoginManager, current_user, logout_user, login_required
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy.orm import relationship, DeclarativeBase, Mapped, mapped_column
-from sqlalchemy import Integer, String, Text, ForeignKey, Date, Boolean, update, func
-from functools import wraps
+from sqlalchemy import Integer, String, Date, Boolean, update, func, and_
 from werkzeug.security import generate_password_hash, check_password_hash
-import os
-from sqlalchemy.exc import IntegrityError
+import cv2
+import json
+from sklearn.neighbors import KNeighborsClassifier
 
 app = Flask(__name__)
 Bootstrap5(app)
@@ -25,6 +24,13 @@ class Base(DeclarativeBase):
     pass
 
 
+video = cv2.VideoCapture(0)
+facedetect = cv2.CascadeClassifier('haarcascade/haarcascade_frontalface_default.xml')
+
+global_data = {}
+user_id_global = None
+video_capture_active = None
+
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///facial_recognition_attendance.db'
 db = SQLAlchemy(model_class=Base)
 db.init_app(app)
@@ -35,7 +41,157 @@ login_manager.init_app(app)
 login_manager.login_view = 'login'
 
 
-# CONFIGURE TABLE
+def generate_frames():
+    video = cv2.VideoCapture(0)
+    facedetect = cv2.CascadeClassifier('haarcascade/haarcascade_frontalface_default.xml')
+
+    faces_data = []
+    i = 0
+
+    while True:
+        ret, frame = video.read()
+        if not ret:
+            break
+        gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+        faces = facedetect.detectMultiScale(gray, 1.3, 5)
+        for (x, y, w, h) in faces:
+            crop_img = frame[y:y + h, x:x + w, :]
+            resized_img = cv2.resize(crop_img, (50, 50))
+            if len(faces_data) < 50 and i % 10 == 0:
+                faces_data.append(resized_img)
+            i += 1
+            cv2.putText(frame, str(len(faces_data)), (50, 50), cv2.FONT_HERSHEY_COMPLEX, 1, (50, 50, 255), 1)
+            cv2.rectangle(frame, (x, y), (x + w, y + h), (50, 50, 255), 1)
+
+        ret, buffer = cv2.imencode('.jpg', frame)
+        frame = buffer.tobytes()
+        yield (b'--frame\r\n'
+               b'Content-Type: image/jpeg\r\n\r\n' + frame + b'\r\n')
+
+        if len(faces_data) >= 50:
+            # Save faces_data to the global dictionary instead of session
+            global_data['faces_data'] = np.array(faces_data).tolist()
+            video.release()
+            cv2.destroyAllWindows()
+            with app.app_context():
+                # Set a flag to indicate completion
+                global_data['capture_complete'] = True
+                break
+
+
+def generate_frames_login():
+    global video_capture_active
+    with app.app_context():
+        # Load data from the database
+        users = db.session.query(User).all()
+        FACES = []
+        LABELS = []
+
+        for user in users:
+            faces_data_json = user.facial_data
+            if faces_data_json:  # Check if JSON string is not empty
+                try:
+                    faces_data = json.loads(faces_data_json.encode('utf-8', 'replace').decode('utf-8', 'replace'))
+                    flattened_faces = [np.array(face).flatten() for face in faces_data]  # Flatten each face data
+                    FACES.extend(flattened_faces)  # Extend FACES with flattened faces
+                    LABELS.extend([user.user_id] * len(flattened_faces))  # Extend LABELS with user_id for each face
+                except (json.JSONDecodeError, UnicodeDecodeError) as e:
+                    print(f"Error decoding JSON for user {user.id}: {e}")
+
+        FACES = np.array(FACES)
+        LABELS = np.array(LABELS)
+
+        print('Shape of Faces matrix --> ', FACES.shape)
+
+        knn = KNeighborsClassifier(n_neighbors=5)
+        knn.fit(FACES, LABELS)
+
+        # Video capture loop
+        video = cv2.VideoCapture(0)
+        facedetect = cv2.CascadeClassifier('haarcascade/haarcascade_frontalface_default.xml')
+        video_capture_active = True
+
+        while video_capture_active:
+            ret, frame = video.read()
+            gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+            faces = facedetect.detectMultiScale(gray, 1.3, 5)
+            for (x, y, w, h) in faces:
+                crop_img = frame[y:y + h, x:x + w, :]
+                resized_img = cv2.resize(crop_img, (50, 50)).flatten().reshape(1, -1)
+                output = knn.predict(resized_img)
+
+                # Store the detected user_id in the global variable
+                global_data["detected_userID"] = output[0]
+
+                cv2.rectangle(frame, (x, y), (x + w, y + h), (0, 0, 255), 1)
+                cv2.rectangle(frame, (x, y), (x + w, y + h), (50, 50, 255), 2)
+                cv2.rectangle(frame, (x, y - 40), (x + w, y), (50, 50, 255), -1)
+                cv2.putText(frame, str(output[0]), (x, y - 15), cv2.FONT_HERSHEY_COMPLEX, 1, (255, 255, 255), 1)
+                cv2.rectangle(frame, (x, y), (x + w, y + h), (50, 50, 255), 1)
+                ret, buffer = cv2.imencode('.jpg', frame)
+                frame = buffer.tobytes()
+                yield (b'--frame\r\n'
+                       b'Content-Type: image/jpeg\r\n\r\n' + frame + b'\r\n')
+
+
+def generate_frames_attendance(user_id):
+    global video_capture_active
+    with app.app_context():
+        # Load data from the database
+        result = db.session.execute(db.select(User).where(User.role == 'student'))
+        users = result.scalars().all()
+
+        FACES = []
+        LABELS = []
+
+        for user in users:
+            faces_data_json = user.facial_data
+            if faces_data_json:  # Check if JSON string is not empty
+                try:
+                    faces_data = json.loads(faces_data_json.encode('utf-8', 'replace').decode('utf-8', 'replace'))
+                    flattened_faces = [np.array(face).flatten() for face in faces_data]  # Flatten each face data
+                    FACES.extend(flattened_faces)  # Extend FACES with flattened faces
+                    LABELS.extend([user.user_id] * len(flattened_faces))  # Extend LABELS with user_id for each face
+                except (json.JSONDecodeError, UnicodeDecodeError) as e:
+                    print(f"Error decoding JSON for user {user.id}: {e}")
+
+        FACES = np.array(FACES)
+        LABELS = np.array(LABELS)
+
+        print('Shape of Faces matrix --> ', FACES.shape)
+
+        knn = KNeighborsClassifier(n_neighbors=5)
+        knn.fit(FACES, LABELS)
+
+        # Video capture loop
+        video = cv2.VideoCapture(0)
+        facedetect = cv2.CascadeClassifier('haarcascade/haarcascade_frontalface_default.xml')
+        video_capture_active = True
+
+        while video_capture_active:
+            ret, frame = video.read()
+            gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+            faces = facedetect.detectMultiScale(gray, 1.3, 5)
+            for (x, y, w, h) in faces:
+                crop_img = frame[y:y + h, x:x + w, :]
+                resized_img = cv2.resize(crop_img, (50, 50)).flatten().reshape(1, -1)
+                output = knn.predict(resized_img)
+
+                # Store the detected user_id in the global variable
+                global_data["detected_userID"] = output[0]
+
+                cv2.rectangle(frame, (x, y), (x + w, y + h), (0, 0, 255), 1)
+                cv2.rectangle(frame, (x, y), (x + w, y + h), (50, 50, 255), 2)
+                cv2.rectangle(frame, (x, y - 40), (x + w, y), (50, 50, 255), -1)
+                cv2.putText(frame, str(output[0]), (x, y - 15), cv2.FONT_HERSHEY_COMPLEX, 1, (255, 255, 255), 1)
+                cv2.rectangle(frame, (x, y), (x + w, y + h), (50, 50, 255), 1)
+                ret, buffer = cv2.imencode('.jpg', frame)
+                frame = buffer.tobytes()
+                yield (b'--frame\r\n'
+                       b'Content-Type: image/jpeg\r\n\r\n' + frame + b'\r\n')
+
+
+# CONFIGURE TABLES
 class Courses(db.Model):
     __tablename__ = "courses"
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
@@ -63,7 +219,7 @@ class User(UserMixin, db.Model):
     email: Mapped[str] = mapped_column(String(100))
     password: Mapped[str] = mapped_column(String(100))
     role: Mapped[str] = mapped_column(String(100))
-    facial_data: Mapped[str] = mapped_column(String(1000))
+    facial_data: Mapped[str] = mapped_column(String(200000))
     courses = relationship('Courses', back_populates='creator')
     attendance = relationship('Attendance', back_populates='student')
 
@@ -104,7 +260,7 @@ def load_user(user_id):
 #     return User.query.get(int(user_id))
 
 
-@app.route("/", methods=["GET", "POST"])
+@app.route("/", methods=["POST", "GET"])
 def login():
     if request.method == "POST":
         username = request.form.get("username")
@@ -127,6 +283,39 @@ def login():
                 return redirect(url_for('instructor_home', instructor_id=user.id))
 
     return render_template("login.html")
+
+
+@app.route("/login1/FaceID", methods=["GET", "POST"])
+def login_faceID():
+    return render_template("login_faceID.html")  # Add a template for displaying the webcam feed
+
+
+@app.route('/stop_video_capture', methods=['POST'])
+def stop_video_capture():
+    video_capture_active = False
+    return jsonify({'status': 'success', 'message': 'Login Successful!'}), 200
+
+
+@app.route('/login_success')
+def login_success():
+    detected_user_id = global_data.get("detected_userID")
+    print(detected_user_id)
+
+    result = db.session.execute(db.select(User).where(User.user_id == detected_user_id))
+    user = result.scalars().first()
+
+    login_user(user)
+    user_role = user.role
+    if user_role == 'student':
+        return redirect(url_for('student_home', student_id=user.id))
+    else:
+        return redirect(url_for('instructor_home', instructor_id=user.id))
+
+
+@app.route("/video_feed_login")
+def video_feed_login():
+    mimetype = 'multipart/x-mixed-replace; boundary=frame'
+    return Response(generate_frames_login(), mimetype=mimetype)
 
 
 @app.route("/role")
@@ -177,17 +366,79 @@ def signup(role):
             role=role,
             facial_data='nothing'
         )
+
         db.session.add(new_user)
         db.session.commit()
 
-        # This line will authenticate users with flask login
-        login_user(new_user)
-        if role == 'student':
-            return redirect(url_for("student_home", student_id=new_user.id))
-        else:
-            return redirect(url_for("instructor_home", instructor_id=new_user.id))
+        # Redirect to capture facial data page
+        return redirect(url_for("capture_facial_data", user_id=new_user.id, role=role))
+
+        # # This line will authenticate users with flask login
+        # login_user(new_user)
+        # if role == 'student':
+        #     return redirect(url_for("student_home", student_id=new_user.id))
+        # else:
+        #     return redirect(url_for("instructor_home", instructor_id=new_user.id))
 
     return render_template("signup.html", role=role)
+
+
+@app.route("/captureFacialData/<int:user_id>/<role>")
+def capture_facial_data(user_id, role):
+    user = User.query.get(user_id)
+    if not user:
+        flash("User not found")
+        return redirect(url_for('signup', role=role))
+
+    global_data["role"] = role
+    return render_template("signup_facialData.html", user_id=user.id, role=role)
+
+
+@app.route("/video_feed/<int:user_id>")
+def video_feed(user_id):
+    global user_id_global
+    user_id_global = user_id
+    mimetype = 'multipart/x-mixed-replace; boundary=frame'
+    return Response(generate_frames(), mimetype=mimetype)
+
+
+@app.route('/capture_completion_redirect')
+def capture_completion_redirect():
+    if global_data.get('capture_complete'):
+        faces_data = global_data.get('faces_data')
+        global user_id_global
+        role = global_data.get('role')
+
+        if user_id_global is None or faces_data is None:
+            print("SSSSSSSSSSSS")  # Handle error appropriately
+
+        faces_data = np.asarray(faces_data)
+        faces_data = faces_data.reshape(50, -1)
+
+        # Convert faces_data to JSON string before storing in the database
+        faces_data_json = json.dumps(faces_data.tolist())
+
+        result = db.session.execute(db.select(User).where(User.id == user_id_global))
+        user = result.scalars().first()
+
+        if user:
+            # Assuming User model has a facial_data attribute
+            user.facial_data = faces_data_json  # Save the new facial data
+            db.session.commit()
+
+            login_user(user)
+            if role == 'student':
+                return redirect(url_for("student_home", student_id=user.id))
+            else:
+                return redirect(url_for("instructor_home", instructor_id=user.id))
+
+
+@app.route('/check_capture_completion')
+def check_capture_completion():
+    faces_data = global_data.get('faces_data')
+    if faces_data is not None and len(faces_data) >= 50:
+        return jsonify(completed=True)
+    return jsonify(completed=False)
 
 
 @app.route('/logout')
@@ -201,9 +452,6 @@ def logout():
 def student_home(student_id):
     result = db.session.execute(db.select(User).where(User.id == student_id))
     student_list = result.scalars().all()
-
-    if not student_list:
-        return "No student found with the given ID."
 
     student = student_list[0]
 
@@ -237,19 +485,104 @@ def student_home(student_id):
 def student_course(course_id, student_id):
     result = db.session.execute(db.select(Courses).where(Courses.id == course_id))
     course = result.scalar()
-    return render_template("student_course.html", course=course, student_id=student_id, course_id=course_id)
+
+    student_number = current_user.user_id
+
+    result2 = db.session.execute(
+        db.select(Attendance).where(and_(Attendance.course_id == course_id, Attendance.student_id == student_number))
+    )
+    attendance_data = result2.scalars()
+
+    return render_template("student_course.html", course=course, student_id=student_id, course_id=course_id, attendance_data=attendance_data)
 
 
 @app.route("/Student/Settings/<student_id>")
 @login_required
 def student_settings(student_id):
-    return render_template("student_settings.html", student_id=student_id)
+    result = db.session.execute(db.select(User).where(User.id == student_id))
+    student = result.scalars().all()
+    return render_template("student_settings.html", student=student[0], role='student', student_id=student_id)
+
+
+@app.route('/update_email', methods=['POST', 'GET'])
+@login_required
+def update_email():
+    if request.method == "POST":
+        new_email = request.form.get('new_email')
+
+        if not new_email:
+            return jsonify({'status': 'error', 'message': 'Please provide a new email address'}), 400
+
+        current_user.email = new_email
+        db.session.commit()
+        return jsonify({'status': 'success', 'message': 'Email updated successfully'}), 200
+
+
+@app.route('/update_password', methods=['POST'])
+@login_required
+def update_password():
+    if request.method == "POST":
+        current_password = request.form.get('current_password')
+        new_password = request.form.get('new_password')
+        confirm_password = request.form.get('confirm_password')
+
+        if not current_password or not new_password or not confirm_password:
+            return jsonify({'status': 'error', 'message': 'Please fill in all password fields'}), 400
+
+        elif not check_password_hash(current_user.password, current_password):
+            return jsonify({'status': 'error', 'message': 'Current password is incorrect'}), 400
+
+        elif new_password != confirm_password:
+            return jsonify({'status': 'error', 'message': 'New password and confirm password do not match'}), 400
+
+        current_user.password = generate_password_hash(new_password)
+        db.session.commit()
+        return jsonify({'status': 'success', 'message': 'Password updated successfully'}), 200
 
 
 @app.route("/Instructor/Settings/<instructor_id>")
 @login_required
 def instructor_settings(instructor_id):
-    return render_template("instructor_settings.html", instructor_id=instructor_id)
+    result = db.session.execute(db.select(User).where(User.id == instructor_id))
+    instructor = result.scalars().all()
+    return render_template("instructor_settings.html", instructor=instructor[0], role='instructor',
+                           instructor_id=instructor_id)
+
+
+@app.route('/update_email_instructor', methods=['POST', 'GET'])
+@login_required
+def update_email_instructor():
+    if request.method == "POST":
+        new_email = request.form.get('new_email')
+
+        if not new_email:
+            return jsonify({'status': 'error', 'message': 'Please provide a new email address'}), 400
+
+        current_user.email = new_email
+        db.session.commit()
+        return jsonify({'status': 'success', 'message': 'Email updated successfully'}), 200
+
+
+@app.route('/update_password_instructor', methods=['POST'])
+@login_required
+def update_password_instructor():
+    if request.method == "POST":
+        current_password = request.form.get('current_password')
+        new_password = request.form.get('new_password')
+        confirm_password = request.form.get('confirm_password')
+
+        if not current_password or not new_password or not confirm_password:
+            return jsonify({'status': 'error', 'message': 'Please fill in all password fields'}), 400
+
+        elif not check_password_hash(current_user.password, current_password):
+            return jsonify({'status': 'error', 'message': 'Current password is incorrect'}), 400
+
+        elif new_password != confirm_password:
+            return jsonify({'status': 'error', 'message': 'New password and confirm password do not match'}), 400
+
+        current_user.password = generate_password_hash(new_password)
+        db.session.commit()
+        return jsonify({'status': 'success', 'message': 'Password updated successfully'}), 200
 
 
 @app.route("/HomePageII/<instructor_id>")
@@ -292,7 +625,9 @@ def instructor_course(course_id, instructor_id):
     result = db.session.execute(db.select(Courses).where(Courses.id == course_id))
     course = result.scalar()
 
-    return render_template("instructor_course.html", role='instructor', course=course, instructor_id=instructor_id)
+    attendance = course.condition
+
+    return render_template("instructor_course.html", role='instructor', course=course, instructor_id=instructor_id, attendance_started=attendance)
 
 
 @app.route("/add_students/<instructor_id>/<course_id>", methods=["POST"])
@@ -345,6 +680,10 @@ def load_student_list():
             "full_name": enrolled_course.fullname,
             "student_id": enrolled_course.student_id
         })
+
+    print("LOAD STUDENT LIST")
+    print(course_id)
+    print(students)
 
     return jsonify({'students': students})
 
@@ -429,13 +768,49 @@ def delete_course():
 @app.route('/give_attendance_page/<course_id>')
 @login_required
 def give_attendance_page(course_id):
-    return render_template('student_give_attendance.html', course_id=course_id)
+    student_number = current_user.user_id
+    global_data["courseID"] = course_id
+    result = db.session.execute(db.select(Courses).where(Courses.id == course_id))
+    course = result.scalar()
+
+    if course.condition:
+        # Get today's date
+        today_date = date.today()
+
+        # Modify the query to include the conditions for course ID, student ID, and attendance date
+        result = db.session.execute(
+            db.select(Attendance).where(
+                and_(
+                    Attendance.course_id == course_id,
+                    Attendance.student_id == student_number,
+                    Attendance.attendance_date == today_date
+                )
+            )
+        )
+        attendance_data = result.scalars()
+
+    return render_template('student_give_attendance.html', course_id=course_id, student_id=current_user.id)
 
 
-@app.route('/give_attendance/<course_id>', methods=['POST'])
+@app.route('/video_feed_attendance')
 @login_required
-def give_attendance(course_id):
+def video_feed_attendance():
+    mimetype = 'multipart/x-mixed-replace; boundary=frame'
+    return Response(generate_frames_attendance(current_user.id), mimetype=mimetype)
+
+
+@app.route('/stop_video_capture_attendance', methods=['POST'])
+def stop_video_capture_attendance():
+    video_capture_active = False
+    return jsonify({'status': 'success', 'message': 'Attendance Successful!'}), 200
+
+
+@app.route('/attendance_success', methods=["POST"])
+def attendance_success():
+    video_capture_active = False
     student_id = current_user.user_id
+    detected_id = global_data.get("detected_userID")
+    course_id = global_data.get("courseID")
 
     # Check if the student is enrolled in the course
     enrolled = db.session.execute(
@@ -456,22 +831,26 @@ def give_attendance(course_id):
     if not course or not course.condition:
         return jsonify({'message': 'Attendance session is off, the instructor needs to turn it on'}), 400
 
-    # Check the existing attendance record
-    today = date.today()
-    attendance = db.session.execute(
-        db.select(Attendance).where(
-            Attendance.course_id == course_id,
-            Attendance.student_id == student_id,
-            Attendance.attendance_date == today
-        )
-    ).scalars().first()
+    if detected_id == student_id:
+        # Check the existing attendance record
+        today = date.today()
+        attendance = db.session.execute(
+            db.select(Attendance).where(
+                Attendance.course_id == course_id,
+                Attendance.student_id == student_id,
+                Attendance.attendance_date == today
+            )
+        ).scalars().first()
 
-    if attendance:
-        attendance.status = 'Present'
-        db.session.commit()
-        return jsonify({'message': 'Attendance given successfully'}), 200
+        if attendance:
+            attendance.status = 'Present'
+            db.session.commit()
+            # return redirect(url_for('student_course', course_id=course_id, student_id=current_user.id))
+            return jsonify({'message': 'Attendance given successfully!'})
+        else:
+            return jsonify({'message': 'Attendance record not found'}), 400
     else:
-        return jsonify({'message': 'Attendance record not found'}), 400
+        return jsonify({'message': 'Another person detected!'})
 
 
 @app.route('/get_attendance_data', methods=['GET'])
@@ -507,6 +886,15 @@ def download_attendance_report():
     if not course_id:
         return jsonify({'error': 'Missing course_id parameter'}), 400
 
+    # Get the course name
+    course = Courses.query.filter_by(id=course_id).first()
+    if not course:
+        return jsonify({'error': 'Course not found'}), 404
+    course_name = course.course_name
+
+    # Get today's date
+    today_date = date.today()
+
     # Get enrolled students for the course
     enrolled_students = EnrolledCourses.query.filter_by(course_id=course_id).all()
 
@@ -518,26 +906,32 @@ def download_attendance_report():
 
         # Count days present and absent
         days_present = db.session.query(func.count(Attendance.id)).filter_by(student_id=student_id,
-                                                                             status='present').scalar()
+                                                                             status='Present').scalar()
         days_absent = db.session.query(func.count(Attendance.id)).filter_by(student_id=student_id,
-                                                                            status='absent').scalar()
+                                                                            status='Absent').scalar()
 
         attendance_report.append({
             'full_name': fullname,
-            'student_id': student_id,
+            'student_id': f"'{student_id}'",  # Prevent scientific notation
             'days_present': days_present,
             'days_absent': days_absent
         })
 
-    # Create CSV
-    si = StringIO()
-    writer = csv.writer(si)
-    writer.writerow(['Full Name', 'Student ID', 'Days Present', 'Days Absent'])
-    for record in attendance_report:
-        writer.writerow([record['full_name'], record['student_id'], record['days_present'], record['days_absent']])
+        # Create CSV
+        si = StringIO()
+        writer = csv.writer(si)
+        # Write header with empty columns between each actual column
+        writer.writerow(['Full Name', '', 'Student ID', '', 'Days Present', '', 'Days Absent', ''])
+        for record in attendance_report:
+            writer.writerow(
+                [record['full_name'], '', record['student_id'], '', record['days_present'], '', record['days_absent'],
+                 ''])
+
+    # Construct filename
+    filename = f"{course_name}_attendance_report_{today_date}.csv"
 
     output = make_response(si.getvalue())
-    output.headers["Content-Disposition"] = "attachment; filename=attendance_report.csv"
+    output.headers["Content-Disposition"] = f"attachment; filename={filename}"
     output.headers["Content-type"] = "text/csv"
     return output
 
@@ -546,32 +940,48 @@ def download_attendance_report():
 def upload_enrolled_courses():
     course_id = request.form.get('course_id')
 
+    # Validate course_id
+    if not course_id:
+        return jsonify({'error': 'Missing course_id parameter'}), 400
+
+    # Check if file part is in the request
     if 'file' not in request.files:
         return jsonify({'error': 'No file part'}), 400
 
     file = request.files['file']
 
+    # Check if a file was selected
     if file.filename == '':
         return jsonify({'error': 'No selected file'}), 400
 
+    # Check if the file is a CSV
     if file and file.filename.endswith('.csv'):
         try:
             # Parse the CSV file
             file_str = StringIO(file.stream.read().decode("UTF8"), newline=None)
             csv_data = csv.reader(file_str)
 
-            # Skip the header row if it exists
-            next(csv_data, None)
+            # Check the header row
+            header = next(csv_data, None)
+            if header is None or header[0].strip().lower() != 'full name' or header[1].strip().lower() != 'student id':
+                return jsonify({'error': 'Invalid CSV format. Must contain "Full name" and "Student ID" columns.'}), 400
 
-            # Store the data from the CSV file
+            # Store the data from the CSV file and check for duplicates
             student_data = []
+            student_ids = set()
             for row in csv_data:
-                student_data.append({'full_name': row[0], 'student_id': row[1]})
+                if len(row) < 2:
+                    continue  # Skip rows that don't have enough columns
+                full_name = row[0].strip()
+                student_id = row[1].strip()
 
-            # # Insert data into the database
-            # db.session.bulk_insert_mappings(EnrolledCourses, student_data)
-            # db.session.commit()
-            return jsonify({'success': 'File uploaded and data inserted successfully', 'data': student_data}), 200
+                if student_id in student_ids:
+                    return jsonify({'error': f'Duplicate student ID found: {student_id}'}), 400
+
+                student_ids.add(student_id)
+                student_data.append({'full_name': full_name, 'student_id': student_id})
+
+            return jsonify({'success': 'File uploaded successfully', 'data': student_data}), 200
 
         except Exception as e:
             return jsonify({'error': str(e)}), 500

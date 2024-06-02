@@ -30,18 +30,16 @@
             </tr>
         </thead>
         <tbody>
+            {% for attendance in attendance_data: %}
             <tr>
-              <td>27/03/2024</td>
-              <td style="color: green">Present</td>
+              <td>{{ attendance.attendance_date }}</td>
+              {% if attendance.status == 'Present': %}
+              <td style="color: green">{{ attendance.status }}</td>
+              {% else %}
+              <td style="color: Red">{{ attendance.status }}</td>
+              {% endif %}
             </tr>
-            <tr>
-              <td>28/03/2024</td>
-              <td style="color: green">Present</td>
-            </tr>
-            <tr>
-              <td>29/03/2024</td>
-              <td style="color: red">Absent</td>
-            </tr>
+            {% endfor %}
           </tbody>
     </table>
 </div>

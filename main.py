@@ -1,24 +1,28 @@
-from datetime import date
-import numpy as np
-from flask import Flask, render_template, redirect, url_for, flash, request, jsonify, Response, \
-    make_response
-from io import StringIO
+import os
+import cv2
 import csv
+import json
+import smtplib
+import numpy as np
+from io import StringIO
+from datetime import date
+from email.mime.text import MIMEText
 from flask_bootstrap import Bootstrap5
-from flask_login import UserMixin, login_user, LoginManager, current_user, logout_user, login_required
 from flask_sqlalchemy import SQLAlchemy
-from sqlalchemy.orm import relationship, DeclarativeBase, Mapped, mapped_column
+from email.mime.multipart import MIMEMultipart
+from itsdangerous import URLSafeTimedSerializer
+from sklearn.neighbors import KNeighborsClassifier
 from sqlalchemy import Integer, String, Date, Boolean, update, func, and_
 from werkzeug.security import generate_password_hash, check_password_hash
-import cv2
-import json
-from sklearn.neighbors import KNeighborsClassifier
-import os
+from sqlalchemy.orm import relationship, DeclarativeBase, Mapped, mapped_column
+from flask_login import UserMixin, login_user, LoginManager, current_user, logout_user, login_required
+from flask import Flask, render_template, redirect, url_for, flash, request, jsonify, Response, make_response
 
 app = Flask(__name__)
 Bootstrap5(app)
-# app.config['SECRET_KEY'] = '8BYkEfBA6O6donzWlSihBXox7C0sKR6b'
-app.config['SECRET_KEY'] = os.environ.get('FLASK_KEY')
+app.config['SECRET_KEY'] = '8BYkEfBA6O6donzWlSihBXox7C0sKR6b'
+# app.config['SECRET_KEY'] = os.environ.get('FLASK_KEY')
+s = URLSafeTimedSerializer(app.config['SECRET_KEY'])
 
 
 # CREATE DATABASE
@@ -33,8 +37,8 @@ global_data = {}
 user_id_global = None
 video_capture_active = None
 
-# app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///facial_recognition_attendance.db'
-app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get("DB_URI", "sqlite:///facial_recognition_attendance.db")
+app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///facial_recognition_attendance.db'
+# app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get("DB_URI", "sqlite:///facial_recognition_attendance.db")
 db = SQLAlchemy(model_class=Base)
 db.init_app(app)
 
@@ -194,6 +198,25 @@ def generate_frames_attendance(user_id):
                        b'Content-Type: image/jpeg\r\n\r\n' + frame + b'\r\n')
 
 
+def send_email(to_email, subject, body):
+    message = MIMEMultipart()
+    message['From'] = 'test.11122211111@outlook.com'
+    message['To'] = to_email
+    message['Subject'] = subject
+    message.attach(MIMEText(body, 'plain'))
+
+    try:
+        session = smtplib.SMTP('smtp.office365.com', 587)
+        session.starttls()
+        session.login('test.11122211111@outlook.com', '12345678Haha')
+        text = message.as_string()
+        session.sendmail('test.11122211111@outlook.com', to_email, text)
+        session.quit()
+        print("Mail Sent Successfully")
+    except Exception as e:
+        print(f"Failed to send email: {e}")
+
+
 # CONFIGURE TABLES
 class Courses(db.Model):
     __tablename__ = "courses"
@@ -256,11 +279,6 @@ with app.app_context():
 @login_manager.user_loader
 def load_user(user_id):
     return db.get_or_404(User, user_id)
-
-
-# @login_manager.user_loader
-# def load_user(user_id):
-#     return User.query.get(int(user_id))
 
 
 @app.route("/", methods=["POST", "GET"])
@@ -450,6 +468,60 @@ def logout():
     return redirect(url_for('login'))
 
 
+@app.route('/forgot_password', methods=["POST", "GET"])
+def forgot_password():
+    if request.method == "POST":
+        email_address = request.form.get("emailID")
+        result = db.session.execute(db.select(User).where(User.email == email_address))
+        user = result.scalar()
+
+        if not user:
+            flash("There is no user account associated with this email address, please try again.")
+            return redirect(url_for('forgot_password'))
+
+        token = s.dumps(email_address, salt='password-reset-salt')
+        reset_url = url_for('reset_password', token=token, _external=True)
+        body = f'User ID : {user.id}' \
+               f'Please use the following link to reset your password: {reset_url}'
+        send_email(email_address, 'Password Reset Request', body)
+        flash('A password reset link has been sent to your email.')
+        return redirect(url_for('login'))
+
+    return render_template("forgot_password.html")
+
+
+@app.route('/reset_password/<token>', methods=["GET", "POST"])
+def reset_password(token):
+    try:
+        email_address = s.loads(token, salt='password-reset-salt', max_age=3600)  # Token valid for 1 hour
+    except Exception as e:
+        flash('The reset link is invalid or has expired.')
+        return redirect(url_for('forgot_password'))
+
+    if request.method == "POST":
+        new_password = request.form.get("new_password")
+        confirm_password = request.form.get("confirm_password")
+
+        if new_password != confirm_password:
+            flash('The new password and confirm password do not match. Please try again.')
+            return redirect(url_for('reset_password', token=token))
+
+        hash_and_salted_password = generate_password_hash(
+            new_password,
+            method='pbkdf2:sha256',
+            salt_length=8
+        )
+
+        user = db.session.execute(db.select(User).where(User.email == email_address)).scalar()
+        user.password = hash_and_salted_password
+        db.session.commit()
+
+        flash('Your password has been reset successfully. Please login with your new password.')
+        return redirect(url_for('login'))
+
+    return render_template('reset_password.html', token=token)
+
+
 @app.route("/HomePage/<student_id>")
 @login_required
 def student_home(student_id):
@@ -496,7 +568,8 @@ def student_course(course_id, student_id):
     )
     attendance_data = result2.scalars()
 
-    return render_template("student_course.html", course=course, student_id=student_id, course_id=course_id, attendance_data=attendance_data)
+    return render_template("student_course.html", course=course, student_id=student_id, course_id=course_id,
+                           attendance_data=attendance_data)
 
 
 @app.route("/Student/Settings/<student_id>")
@@ -630,7 +703,8 @@ def instructor_course(course_id, instructor_id):
 
     attendance = course.condition
 
-    return render_template("instructor_course.html", role='instructor', course=course, instructor_id=instructor_id, attendance_started=attendance)
+    return render_template("instructor_course.html", role='instructor', course=course, instructor_id=instructor_id,
+                           attendance_started=attendance)
 
 
 @app.route("/add_students/<instructor_id>/<course_id>", methods=["POST"])
@@ -756,16 +830,6 @@ def end_attendance():
 
     db.session.commit()
     return jsonify({'message': 'Attendance session ended successfully'}), 200
-
-
-@app.route('/delete_course', methods=['POST'])
-@login_required
-def delete_course():
-    data = request.get_json()
-    course_id = data.get('course_id')
-    print(course_id)
-    # Your logic to delete the course using course_id
-    return jsonify({'message': 'Course deleted successfully'}), 200
 
 
 @app.route('/give_attendance_page/<course_id>')
@@ -991,6 +1055,37 @@ def upload_enrolled_courses():
 
     else:
         return jsonify({'error': 'Invalid file type. Please upload a CSV file'}), 400
+
+
+@app.route('/delete_course', methods=['POST'])
+def delete_course():
+    data = request.get_json()
+    course_id = data.get('course_id')
+    print(course_id)
+
+    # Perform deletion logic here
+    try:
+        # Delete rows from EnrolledCourses table
+        enrolled_courses = db.session.query(EnrolledCourses).filter_by(course_id=course_id).all()
+        for enrolled_course in enrolled_courses:
+            db.session.delete(enrolled_course)
+
+        # Delete rows from Attendance table
+        attendance_records = db.session.query(Attendance).filter_by(course_id=course_id).all()
+        for attendance in attendance_records:
+            db.session.delete(attendance)
+
+        # Delete row from Courses table
+        course = db.session.query(Courses).filter_by(id=course_id).first()
+        if course:
+            db.session.delete(course)
+
+        # Commit the changes
+        db.session.commit()
+        return jsonify({'success': True})
+    except Exception as e:
+        db.session.rollback()  # Rollback the session in case of error
+        return jsonify({'success': False, 'error': str(e)})
 
 
 if __name__ == "__main__":

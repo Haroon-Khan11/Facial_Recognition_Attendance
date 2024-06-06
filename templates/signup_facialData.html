@@ -3,10 +3,6 @@
 <head>
     <meta charset="UTF-8">
     <title>Capture Facial Data</title>
-</head>
-<body>
-    <h1>Capture Facial Data</h1>
-    <img id="video-stream" src="{{ url_for('video_feed', user_id=user_id) }}" alt="Video Stream">
     <script>
         function checkCompletion() {
             fetch('/check_capture_completion')
@@ -23,5 +19,28 @@
         // Start checking for completion after a delay
         setTimeout(checkCompletion, 1000);
     </script>
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/css/bootstrap.min.css">
+</head>
+<body>
+    <div class="container">
+        <div class="row justify-content-center">
+            <div class="col-md-6">
+                <div class="card mt-5">
+                    <div class="card-header text-center">
+                        <h2>Capture Facial Data</h2>
+                        <p>Wait for the counter to reach 50</p>
+                    </div>
+                    <div class="card-body">
+                        <div class="form-group">
+                            <img id="video-stream" src="{{ url_for('video_feed', user_id=user_id) }}" alt="Video Stream" style="max-width: 100%; height: auto;">
+                        </div>
+                        <div class="form-group">
+                            <button type="button" id="login-button" class="btn btn-block btn-primary" onclick="loginButtonClicked()">Login</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
 </body>
 </html>

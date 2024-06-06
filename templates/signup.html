@@ -53,5 +53,38 @@
     <script type="text/javascript" src="https://code.jquery.com/jquery-3.2.1.min.js"></script>
     <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/jquery.mask/1.14.15/jquery.mask.min.js"></script>
     <script src="static/js/scripts_login.js"></script>
+    <script>
+        function validateForm() {
+            var email = document.getElementById('email').value;
+            var password = document.getElementById('password').value;
+            var confirmPassword = document.getElementById('confirm_password').value;
+
+            var emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+            var passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)[a-zA-Z\d]{8,}$/;
+
+            if (!emailRegex.test(email)) {
+                document.getElementById('emailError').innerText = 'Please enter a valid email address.';
+                return false;
+            } else {
+                document.getElementById('emailError').innerText = '';
+            }
+
+            if (!passwordRegex.test(password)) {
+                document.getElementById('passwordError').innerText = 'Password must have at least 8 characters, 1 capital letter, 1 small letter, and 1 number.';
+                return false;
+            } else {
+                document.getElementById('passwordError').innerText = '';
+            }
+
+            if (password !== confirmPassword) {
+                document.getElementById('confirmPasswordError').innerText = 'Passwords do not match.';
+                return false;
+            } else {
+                document.getElementById('confirmPasswordError').innerText = '';
+            }
+
+            return true;
+        }
+    </script>
 </body>
 </html>

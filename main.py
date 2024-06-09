@@ -30,8 +30,8 @@ class Base(DeclarativeBase):
     pass
 
 
-video = cv2.VideoCapture(0)
-facedetect = cv2.CascadeClassifier('haarcascade/haarcascade_frontalface_default.xml')
+# video = cv2.VideoCapture(0)
+# facedetect = cv2.CascadeClassifier('haarcascade/haarcascade_frontalface_default.xml')
 
 global_data = {}
 user_id_global = None

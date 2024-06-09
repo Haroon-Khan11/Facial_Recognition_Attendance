@@ -20,7 +20,7 @@ from flask import Flask, render_template, redirect, url_for, flash, request, jso
 
 app = Flask(__name__)
 Bootstrap5(app)
-app.config['SECRET_KEY'] = '8BYkEfBA6O6donzWlSihBXox7C0sKR6b'
+app.config['SECRET_KEY'] = 'YOUR-SECRET-KEY-HERE'
 # app.config['SECRET_KEY'] = os.environ.get('FLASK_KEY')
 s = URLSafeTimedSerializer(app.config['SECRET_KEY'])
 
